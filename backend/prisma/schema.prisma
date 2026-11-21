@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TRAINING_CENTRE
+  DISTRICT_OFFICER
+  QUALITY_OFFICER
+  STATE_OFFICER
+}
+
+model User {
+  id               String   @id @default(uuid())
+  name             String
+  email            String   @unique
+  passwordHash     String
+  role             Role
+  isActive         Boolean  @default(true)
+
+  districtId       String?
+  trainingCentreId String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+enum BatchStatus {
+  DRAFT
+  SUBMITTED
+  DISTRICT_APPROVAL
+  QUALITY_REVIEW
+  STATE_APPROVAL
+  APPROVED
+  RETURNED
+  REJECTED
+  CANCELLED
+}
+
+enum ApprovalStage {
+  DISTRICT
+  QUALITY
+  STATE
+}
+
+enum ApprovalAction {
+  APPROVED
+  REJECTED
+  RETURNED
+}
+
+model Batch {
+  id              String      @id @default(uuid())
+  batchNumber     String      @unique
+  name            String
+  districtId      String
+  trainingCentreId String
+
+  status          BatchStatus @default(DRAFT)
+
+  candidateCount  Int         @default(0)
+
+  createdBy       String
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  candidates      Candidate[]
+  approvals       Approval[]
+}
+
+model Candidate {
+  id              String   @id @default(uuid())
+
+  batchId         String
+  batch           Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  name            String
+  email           String?
+  phone           String
+  registrationNumber String @unique
+
+  courseName      String
+  completionDate  DateTime
+
+  createdAt       DateTime @default(now())
+
+  certificate     Certificate?
+}
+
+model Approval {
+  id              String         @id @default(uuid())
+
+  batchId         String
+  batch           Batch          @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  officerId       String
+  stage           ApprovalStage
+  action          ApprovalAction
+
+  remarks         String?
+
+  createdAt       DateTime       @default(now())
+
+  @@unique([batchId, officerId])
+}
+
+model Certificate {
+  id              String   @id @default(uuid())
+
+  candidateId     String   @unique
+  candidate       Candidate @relation(fields: [candidateId], references: [id])
+
+  certificateNumber String  @unique
+  verificationCode String  @unique
+
+  issuedAt        DateTime @default(now())
+  isCancelled     Boolean  @default(false)
+  cancelledAt     DateTime?
+
+  cancellationReason String?
+
+  createdAt       DateTime @default(now())
+}
